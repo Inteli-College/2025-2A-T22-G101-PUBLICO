@@ -148,6 +148,23 @@ differentiation from López de Prado (2018); the **Deflated Sharpe Ratio** (Bail
 López de Prado, 2014) to discount multiple-testing; and fractional-Kelly position
 sizing for the confidence scaling.
 
+**Design-choice rationale.** The key operating parameters follow from principles, not
+parameter sweeps. The portfolio rebalances **weekly** because the decision frequency
+should match the rate at which the underlying signals (macro liquidity, on-chain data,
+trend regime) actually evolve — daily rebalancing would trade on noise and pay cost,
+while monthly would be too slow for crypto's fast regime shifts; rebalancing on **Friday**
+concentrates a full week of information into one auditable decision and makes weekend
+exposure (crypto trades 24/7) a deliberate choice. The model forecasts a short,
+**three-day** horizon — where return predictability is strongest — but **holds the
+position through the week**, because no materially better information arrives intra-week
+to justify the cost of trading; an **emergency rebalance** overrides this only on rare,
+regime-defining single-day moves (fat-tail events that are signal, not the noise the
+weekly cadence absorbs). The strategy is **long-only** because shorting a
+positively-drifting, fat-right-tailed asset is asymmetrically risky; positions are sized
+by model **confidence** (a fractional-Kelly intuition); and the regime multipliers are
+deliberately **conservative**, trading some backtest return for robustness to prediction
+and regime-classification error in live operation.
+
 ### 2.2 Specification and development
 
 **Data.** The pipeline ingests roughly a dozen public and licensed sources spanning
