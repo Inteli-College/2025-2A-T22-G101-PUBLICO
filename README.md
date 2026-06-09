@@ -7,6 +7,7 @@ de Tecnologia e Liderança). Business partner: **Hashdex**.
 
 ### Machine Learning for Dynamic Bitcoin Allocation: A Risk-Adjusted, Long-Only Strategy
 
+- 📘 [`Public Report G101 M16.docx`](./Public%20Report%20G101%20M16.docx) — full report (Word, INTELI TCC template format)
 - 📄 [`Public Report G101 M16.pdf`](./Public%20Report%20G101%20M16.pdf) — full report (PDF)
 - 📝 [`Public Report G101 M16.md`](./Public%20Report%20G101%20M16.md) — source (Markdown)
 
