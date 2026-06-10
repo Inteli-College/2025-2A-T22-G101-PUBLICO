@@ -27,12 +27,13 @@ venda a descoberto) e otimizada para **retorno ajustado ao risco de queda** (Sor
 O núcleo é um ensemble duplo de árvores de decisão com gradient boosting (XGBoost) que
 prevê o retorno do BTC em três dias; a previsão é convertida em uma alocação
 dimensionada por um filtro de regime de mercado e pela confiança do modelo, e limitada
-por controles de risco automáticos (kill switch, redução por acurácia e monitor de
-drift). A validação seguiu práticas de finanças quantitativas: walk-forward
-out-of-sample com purga temporal, teste de permutação de rótulos, Sharpe deflacionado
-e validação com múltiplas sementes. Em um backtest de 4,28 anos out-of-sample, a
-estratégia obteve Sortino diário de 3,53 e drawdown máximo de -7,1%, contra -21,7% de
-uma alocação estática 30% BTC/70% CDI e -66,7% de uma posição comprada em BTC. O sinal
+por controles de risco automáticos (kill switch e monitor de drift). A validação seguiu
+práticas de finanças quantitativas: walk-forward out-of-sample com purga temporal,
+teste de permutação de rótulos, Sharpe deflacionado e validação com múltiplas sementes.
+Em um backtest de 4,28 anos out-of-sample, medido integralmente em reais (BTC convertido
+por USDBRL), a estratégia obteve Sortino diário de 3,84 e drawdown máximo de -5,3%,
+contra -20,2% de uma alocação estática 30% BTC/70% CDI e -66,5% de uma posição
+comprada em BTC. O sinal
 é estatisticamente real (nenhuma de 100 permutações superou o baseline; p < 0,01). A
 solução encontra-se em fase de paper trade, com um gate de decisão de capital previsto
 para o terceiro trimestre de 2026.
@@ -53,13 +54,14 @@ in a **long-only** manner (0% to 100%, no short selling) and optimized for **dow
 risk-adjusted return** (the Sortino ratio). The core is a dual ensemble of
 gradient-boosted decision trees (XGBoost) that forecasts the three-day forward BTC
 return; the forecast is converted into an allocation scaled by a market-regime filter
-and the model's confidence, and bounded by automated risk controls (kill switch,
-accuracy de-risk, and a feature-drift monitor). Validation followed quantitative-finance
+and the model's confidence, and bounded by automated risk controls (a kill switch and
+a feature-drift monitor). Validation followed quantitative-finance
 best practice: walk-forward out-of-sample testing with temporal purging, label
 permutation testing, the Deflated Sharpe Ratio, and multi-seed validation. In a
-4.28-year out-of-sample backtest the strategy achieved a daily Sortino ratio of 3.53
-and a maximum drawdown of -7.1%, versus -21.7% for a static 30% BTC / 70% CDI
-allocation and -66.7% for a buy-and-hold BTC position. The signal is statistically real
+4.28-year out-of-sample backtest, measured fully in Brazilian reais (BTC converted at
+USDBRL), the strategy achieved a daily Sortino ratio of 3.84
+and a maximum drawdown of -5.3%, versus -20.2% for a static 30% BTC / 70% CDI
+allocation and -66.5% for a buy-and-hold BTC position. The signal is statistically real
 (none of 100 label permutations beat the baseline; p < 0.01). The solution is in a
 paper-trading phase, with a capital-allocation decision gate planned for the third
 quarter of 2026.
@@ -90,10 +92,11 @@ recurring decision, and is defensible to investors and regulators.
 
 The core problem is to **capture Bitcoin's risk premium with a fraction of its
 drawdown**, systematically. The baseline (the current alternative) is a static
-allocation. Over the 2022–2026 test window, in BRL: a 100% BTC buy-and-hold position
-returned +15.5% CAGR but suffered a **-66.7% maximum drawdown**; a static 30% BTC / 70%
-CDI blend returned +17.0% CAGR with a -21.7% drawdown and a Sortino ratio of 1.13; cash
-(CDI) returned +13.0% with no drawdown. The opportunity is to dominate these baselines
+allocation. Over the 2022–2026 test window, in consistent BRL (BTC priced via USDBRL):
+a 100% BTC buy-and-hold position
+returned +12.1% CAGR but suffered a **-66.5% maximum drawdown**; a static 30% BTC / 70%
+CDI blend returned +15.6% CAGR with a -20.2% drawdown and a Sortino ratio of 1.03; cash
+(CDI) returned +12.8% with no drawdown. The opportunity is to dominate these baselines
 on a downside-risk-adjusted basis.
 
 ### 1.4 Proposed solution and expected contribution
@@ -159,7 +162,9 @@ exposure (crypto trades 24/7) a deliberate choice. The model forecasts a short,
 position through the week**, because no materially better information arrives intra-week
 to justify the cost of trading; an **emergency rebalance** overrides this only on rare,
 regime-defining single-day moves (fat-tail events that are signal, not the noise the
-weekly cadence absorbs). The strategy is **long-only** because shorting a
+weekly cadence absorbs), detected and executed right after the daily candle close —
+waiting for the close, rather than trading intraday at the trigger level, historically
+buys the dip at better prices. The strategy is **long-only** because shorting a
 positively-drifting, fat-right-tailed asset is asymmetrically risky; positions are sized
 by model **confidence** (a fractional-Kelly intuition); and the regime multipliers are
 deliberately **conservative**, trading some backtest return for robustness to prediction
@@ -185,11 +190,13 @@ is clipped to the [0%, 100%] long-only range. The portfolio rebalances weekly, w
 extra emergency rebalance on very large single-day moves, and the model is retrained on
 a fixed semi-annual schedule using an expanding window.
 
-**Risk controls.** Three automated controls are applied to every signal and are part of
+**Risk controls.** Two automated controls are applied to every signal and are part of
 the production code: a **kill switch** that caps exposure when cumulative drawdown
-breaches a threshold; an **accuracy de-risk** that halves exposure when rolling
-predictive accuracy deteriorates while the model remains overconfident; and a
-**population-stability monitor** that flags feature-distribution drift.
+breaches a threshold, and a **population-stability monitor** that flags
+feature-distribution drift. An accuracy de-risk rule (halving exposure when rolling
+predictive accuracy deteriorated) was part of the original design but was **retired in
+June 2026** after a 10-seed paired validation showed it reduced return without reducing
+maximum drawdown; rolling accuracy is still computed and reported for monitoring.
 
 **Validation methodology.** The system is evaluated with walk-forward, out-of-sample
 testing (expanding window, temporal purge/embargo), multi-seed runs to quantify metric
@@ -198,7 +205,7 @@ Sharpe Ratio to discount the number of configurations tried.
 
 **Engineering.** The solution is a one-command production pipeline with pinned
 dependencies for reproducibility, a configuration fingerprint that detects a stale model
-and forces retraining, and a test suite of 132 tests (covering look-ahead, determinism,
+and forces retraining, and a test suite of 133 tests (covering look-ahead, determinism,
 train/serve parity, and the risk controls).
 
 ### 2.3 Assessment of impact and contribution to the business
@@ -208,19 +215,22 @@ rebalances), reported on a multi-seed basis and aware of realistic transaction c
 few basis points per rebalance; results remain strong even under a pessimistic 50 bps
 assumption).
 
-**Table 1 — Risk-adjusted performance (4.28-year out-of-sample backtest, BRL).**
+**Table 1 — Risk-adjusted performance (4.28-year out-of-sample backtest, consistent
+BRL: BTC priced via USDBRL, cash leg at CDI; 10-seed means).**
 
 | Strategy | CAGR | Sortino (daily) | Max drawdown |
 |---|---|---|---|
-| Cash benchmark (CDI) | +13.0% | — | 0% |
-| Static 30% BTC / 70% CDI | +17.0% | 1.13 | -21.7% |
-| 100% Bitcoin (buy-and-hold) | +15.5% | 0.56 | -66.7% |
-| **This strategy (long-only ML)** | **+57.3%** | **3.53** | **-7.14%** |
+| Cash benchmark (CDI) | +12.8% | — | 0% |
+| Static 30% BTC / 70% CDI | +15.6% | 1.03 | -20.2% |
+| 100% Bitcoin (buy-and-hold) | +12.1% | 0.50 | -66.5% |
+| **This strategy (long-only ML)** | **+50.5%** | **3.84** | **-5.3%** |
 
 The strategy delivered markedly higher downside-risk-adjusted performance than either
-static allocation, holding maximum drawdown to roughly **one-tenth** of buy-and-hold — a
-direct consequence of spending most of the time (~58%) in cash and concentrating
-exposure (~15% average) in favorable regimes.
+static allocation, holding maximum drawdown to roughly **one-twelfth** of buy-and-hold —
+a direct consequence of spending most of the time (~58%) in cash and concentrating
+exposure (~13% average) in favorable regimes. Every calendar year of the test window
+was positive. (Figures reflect the final June-2026 configuration: confidence scaling
+tightened and the accuracy de-risk rule retired after a 10-seed paired validation.)
 
 **Statistical significance.** In label-permutation testing, **none of 100 shuffled-target
 runs beat the baseline** (p < 0.01). A feature-composition probe shows that signal +
@@ -229,9 +239,10 @@ regime + confidence alone yield a Sortino of 2.19, while the ML magnitude foreca
 After applying a Deflated Sharpe Ratio for multiple-testing, the strategy still passes
 under a realistic estimate of the number of effective trials.
 
-**Early live (paper) evidence.** In a strict out-of-sample window of the most recent
-year-to-date (105 days, 17 rebalances), the strategy returned **+19.67%** while Bitcoin
-buy-and-hold returned **-14.36%** and cash **+4.09%** — early corroboration, though
+**Early live (paper) evidence.** In a strict out-of-sample window covering the current
+year-to-date (through early June, 24 rebalances; model last trained in January), the
+strategy returned **+9.3%** in consistent BRL while Bitcoin buy-and-hold returned
+**-33%** in BRL and cash **+5.9%** — early corroboration, though
 concentrated in a small number of rebalances.
 
 **Business impact.** For an illustrative (fictitious) allocated capital, the value
